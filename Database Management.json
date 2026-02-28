@@ -1,0 +1,307 @@
+{
+  "name": "ai",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "image",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "upload product image",
+              "fieldType": "file"
+            },
+            {
+              "fieldLabel": "add a prompt"
+            },
+            {
+              "fieldLabel": "only video?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "yes"
+                  },
+                  {
+                    "option": "no"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        416
+      ],
+      "id": "d57b613e-289e-4cd7-bae8-2271ecb1174c",
+      "name": "On form submission",
+      "webhookId": "8cf0f32f-8fb8-4681-bcb4-2e30bd94aef5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.imgbb.com/1/upload?key=7c340a3511f65d45c689750c5231f20d",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image",
+              "value": "={{ $json.data }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "cb5eed50-4ba0-4b4e-8935-a837c4612af7",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-1.5-pro-latest",
+          "mode": "list",
+          "cachedResultName": "models/gemini-1.5-pro-latest"
+        },
+        "text": "=Image Analysis Instructions\n\nPrimary Task: Analyze the given image to determine if it shows a product,\ncharacter, or both\nOutput Format: Return analysis in YAML format only (no explanations or additional\ncomments)\nFor Product Images:\n\nbrand_name: Brand name shown or inferable from image\ncolor_scheme: List each prominent color with:\n\nhex: Hex code value\nname: Descriptive color name\n\nfont_style: Font characteristics (serif/sans-serif, bold/thin, etc.)\nvisual_description: 1-2 sentences describing what's visible (exclude background)\n\n\nFor Character Images:\n\ncharacter_name: Character name if visible or inferable\ncolor_scheme: List each prominent color with:\n\nhex: Hex code value\nname: Descriptive color name\n\noutfit_style: Description of clothing, accessories, or notable features\nvisual_description: 1-2 sentences describing character appearance (exclude\nbackground)\n\n\nFor Images Containing Both: Provide both product and character descriptions using\nthe respective fields above\nImportant: Return only the YAML output with no additional text\n",
+        "inputType": "=url",
+        "imageUrls": "={{ $json.data.url }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "c8fc1d9a-0011-4a58-8b19-f1b0e4989409",
+      "name": "Analyze image1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Y4CYKTfyQ8Pbe7S7",
+          "name": "test 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        176,
+        384
+      ],
+      "id": "56986414-3f6b-46f6-b039-40435099cb3d",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Y4CYKTfyQ8Pbe7S7",
+          "name": "test 1"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        320,
+        400
+      ],
+      "id": "fc038322-901e-4dea-9cc0-7cce1f4fa3ce",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Primary Objective: Create 1 image prompt following system guidelines\nAccuracy Requirements:\n\nDepict reference image as accurately as possible\nEnsure all text elements are reproduced precisely\nMaintain visual fidelity to original\n\nInput Sources:\n\nUser Instructions:{{ $('On form submission').item.json['add a prompt'] }}\nReference Image Description:{{ $json.content }}\nAspect Ratio: User's preferred ratio (infer from message; default to vertical if\nunspecified)\n\nProcess Steps:\n\nAnalyze user's prompt requirements\nReview reference image description thoroughly\nDetermine appropriate aspect ratio\nUse Think tool to verify output before finalizing\n\nOutput: Single, comprehensive image generation prompt that accurately captures all\nspecified elements\n",
+        "options": {
+          "systemMessage": "=System Prompt: Image Prompt Generator\n\nDefault Behavior:\nIf user instructions lack detail: Generate \"put this (product) into the scene with the (character)\"\n\n\nOverride: Follow explicit user style/setting requests when provided\n\nCore Task:\nTake reference image/product and place into realistic, casual scenes\nSimulate everyday content creator/influencer captures\n\nMandatory UGC Style Elements:\n\nNatural, candid, unpolished appearance\n\nEveryday realism with authentic, relatable settings\n\nAmateur-quality iPhone photo aesthetic\n\nSlightly imperfect framing and lighting\n\nCandid poses with genuine expressions\n\nVisible imperfections (blemishes, messy hair, uneven skin, texture flaws)\n\nReal-world environments as-is (clutter, busy backgrounds)\n\nText Preservation: All visible product text must be accurate (logos, slogans, packaging claims)\n\nNo Fabrication: Never invent extra claims or numbers\n\nCamera Parameters Must Include:\nCasual realism descriptors: unremarkable amateur iPhone photos, reddit image, snapchat photo, casual iPhone selfie, slightly uneven framing, authentic share, slightly blurry, amateur quality phone photo\n\nContent Restrictions:\n\nGenerate image prompts only (no dialogue/video)\n\nAvoid copyrighted character names in prompts\n\nOutput Requirements:\n\nGenerate image generation instructions in exact YAML format\n\nDefault to vertical aspect ratio if unspecified\n\nAlways include both:\n\nimage_prompt (stringified YAML with scene details)\n\naspect_ratio_image (\"3:2\" or \"2:3\")\n\nGuidance Standards:\n\nFollow UGC-style casual realism principles\n\nEnsure diversity (gender, ethnicity, hair color) when applicable\n\nDefault age range: 21–38 years unless specified\n\nDefault to casual real-world environments unless setting specified\n\nAvoid double quotes in image prompts\n\nGood Example Format:\n{\n  \"scenes\": [\n    {\n      \"image_prompt\": \"action: character holds product naturally\\ncharacter: infer from reference image\\nproduct: show product with all visible text clear and accurate\\nsetting: infer from image or user instruction\\ncamera: amateur iPhone photo, casual selfie, uneven framing, slightly blurry\\nstyle: candid UGC look, no filters, imperfections intact\\ntext_accuracy: preserve all visible text exactly as in reference image\",\n      \"aspect_ratio_image\": \"2:3\"\n    }\n  ]\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        192,
+        176
+      ],
+      "id": "4e6c3a95-df16-44ed-ae32-a70ff3f16cac",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "binaryPropertyName": "upload_product_image",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        0,
+        160
+      ],
+      "id": "2fddff51-f22f-489e-8e1a-0610ce0c7c0d",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-goog-api-key",
+              "value": "AIzaSyB-6GwGgKSQlvpTLpreqoOZfzAWmjdj_ps"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"{{ $json.output.replace(/\\\"/g, '\\\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n        },\n        {\n          \"inlineData\": {\n            \"mimeType\": \"image/jpeg\",\n            \"data\":\"{{ $('Extract from File').item.json.data }}\"\n          }\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        176
+      ],
+      "id": "0c5381a3-06df-4f82-86a5-6d31f18b4ba7",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "candidates[0].content.parts[0].inlineData.data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        32
+      ],
+      "id": "cb468711-0a46-47c5-a44d-e6ec2036121f",
+      "name": "Convert to File"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Analyze image1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ae71a6bb-88d2-4ca8-b6e3-dcdc1038f0dc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0f80a6028b8fb08b99608634e3b636bb0d81075728466e32fb31750330e11248"
+  },
+  "id": "Q08TgcGLQMrALMQn",
+  "tags": []
+}
